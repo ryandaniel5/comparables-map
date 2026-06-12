@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lease & Sales Comparables Map — 4040 & 4120 N MLK Blvd</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; background: #f0f2f5; display: flex; flex-direction: column; height: 100vh; }
+  .header { background: #1B3A6B; padding: 12px 22px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .header-left h1 { font-size: 13pt; font-weight: bold; color: white; letter-spacing: 0.02em; }
+  .header-left p { font-size: 8.5pt; color: rgba(255,255,255,0.7); margin-top: 2px; }
+  .header-right { text-align: right; font-size: 8pt; color: rgba(255,255,255,0.7); line-height: 1.5; }
+  .header-right strong { color: #C9A84C; font-size: 9pt; }
+  .download-btn { background: #C9A84C; color: #1B3A6B; border: none; padding: 8px 16px; border-radius: 4px; font-size: 8pt; font-weight: bold; cursor: pointer; margin-left: 20px; transition: background 0.2s; }
+  .download-btn:hover { background: #B8922A; }
+  .body { display: flex; flex: 1; overflow: hidden; }
+  #map { flex: 1; height: 100%; }
+  .sidebar { width: 310px; background: white; overflow-y: auto; border-left: 1px solid #ddd; flex-shrink: 0; font-size: 8.5pt; }
+  .sec-hdr { padding: 8px 14px 6px; font-size: 7.5pt; font-weight: bold; letter-spacing: 0.14em; text-transform: uppercase; color: white; display: flex; align-items: center; gap: 8px; }
+  .sec-hdr.subject  { background: #1B3A6B; }
+  .sec-hdr.onmarket { background: #B8922A; }
+  .sec-hdr.executed { background: #2E5C2E; }
+  .sec-hdr .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .comp-card { padding: 9px 14px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.12s; }
+  .comp-card:hover { background: #f8f9fb; }
+  .comp-card.active { background: #EEF2F9; border-left: 3px solid #1B3A6B; padding-left: 11px; }
+  .card-top { display: flex; gap: 9px; align-items: flex-start; margin-bottom: 5px; }
+  .badge { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8.5pt; font-weight: bold; color: white; flex-shrink: 0; margin-top: 1px; }
+  .badge.subject  { background: #1B3A6B; border: 2px solid #C9A84C; }
+  .badge.onmarket { background: #C9A84C; }
+  .badge.executed { background: #2E5C2E; }
+  .card-addr { font-size: 8.5pt; font-weight: bold; color: #1B3A6B; line-height: 1.3; }
+  .card-sub { font-size: 7.5pt; color: #888; margin-top: 1px; }
+  .card-row { display: flex; justify-content: space-between; padding: 2.5px 0; border-bottom: 1px solid #f4f4f4; gap: 6px; }
+  .card-row:last-child { border-bottom: none; }
+  .cr-lbl { color: #aaa; text-transform: uppercase; font-size: 6.5pt; letter-spacing: 0.06em; white-space: nowrap; }
+  .cr-val { color: #111; font-weight: 500; font-size: 8pt; text-align: right; }
+  .legend { padding: 10px 14px; border-bottom: 1px solid #eee; background: #f8f9fb; }
+  .legend-title { font-size: 7pt; font-weight: bold; letter-spacing: 0.12em; color: #C9A84C; text-transform: uppercase; margin-bottom: 7px; }
+  .leg-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 8pt; color: #444; }
+  .leg-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+  .sidebar-footer { padding: 10px 14px; font-size: 7pt; color: #aaa; line-height: 1.5; border-top: 1px solid #eee; }
+  .leaflet-popup-content-wrapper { border-radius: 4px; box-shadow: 0 4px 14px rgba(0,0,0,0.22); padding: 0; overflow: hidden; }
+  .leaflet-popup-content { margin: 0; min-width: 220px; }
+  .popup-hdr { padding: 9px 13px; font-size: 9.5pt; font-weight: bold; color: white; line-height: 1.3; }
+  .popup-hdr.subject  { background: #1B3A6B; }
+  .popup-hdr.onmarket { background: #B8922A; }
+  .popup-hdr.executed { background: #2E5C2E; }
+  .popup-body { padding: 9px 13px; }
+  .popup-row { display: flex; justify-content: space-between; font-size: 8.5pt; padding: 3px 0; border-bottom: 1px solid #f0f0f0; gap: 10px; }
+  .popup-row:last-child { border-bottom: none; }
+  .pl { color: #888; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.05em; }
+  .pv { color: #111; font-weight: 500; text-align: right; }
+  .modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+  .modal-content { background: white; margin: auto; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+  .modal-title { font-size: 14pt; font-weight: bold; color: #1B3A6B; margin-bottom: 15px; }
+  .modal-btn { background: #C9A84C; color: #1B3A6B; border: none; padding: 10px 20px; border-radius: 4px; font-size: 10pt; font-weight: bold; cursor: pointer; margin-right: 10px; transition: background 0.2s; }
+  .modal-btn:hover { background: #B8922A; }
+  .modal-btn-cancel { background: #ccc; color: #333; }
+  .modal-btn-cancel:hover { background: #aaa; }
+  .loading { display: none; text-align: center; padding: 15px; }
+  .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #C9A84C; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto; }
+  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-left">
+    <h1>LEASE COMPARABLES MAP</h1>
+    <p>4040 & 4120 N Martin Luther King Blvd — Park at Northpointe, North Las Vegas, NV 89032</p>
+  </div>
+  <div class="header-right">
+    <strong>Sansone Investments</strong><br>
+    Devon Sansone | Principal | 702-321-1927<br>
+    June 2026
+    <button class="download-btn" onclick="openDownloadModal()">↓ Download</button>
+  </div>
+</div>
+<div class="body">
+  <div id="map"></div>
+  <div class="sidebar">
+    <div class="legend">
+      <div class="legend-title">Map Key</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#1B3A6B;border:2px solid #C9A84C;"></div> Subject Properties</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#C9A84C;"></div> On Market — Active Listing</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#2E5C2E;"></div> Executed Lease — Deal Done</div>
+    </div>
+    <div class="sec-hdr subject"><div class="dot" style="background:#C9A84C;border-radius:50%;"></div>Subject Properties</div>
+    <div class="comp-card" id="card-subject" onclick="flyTo(36.2337,-115.1614,'subject',16)">
+      <div class="card-top"><div class="badge subject">S</div><div><div class="card-addr">4040 & 4120 N Martin Luther King Blvd</div><div class="card-sub">Park at Northpointe — North Las Vegas, NV 89032</div></div></div>
+      <div class="card-row"><span class="cr-lbl">Combined SF</span><span class="cr-val">±9,844 SF</span></div>
+      <div class="card-row"><span class="cr-lbl">In-Place Rent</span><span class="cr-val">$1.40/SF NNN</span></div>
+      <div class="card-row"><span class="cr-lbl">Occupancy</span><span class="cr-val">100%</span></div>
+      <div class="card-row"><span class="cr-lbl">Expiry</span><span class="cr-val">August 31, 2032</span></div>
+    </div>
+    <div class="sec-hdr onmarket"><div class="dot" style="background:white;border-radius:50%;"></div>On Market — Active Listings (7)</div>
+    <div class="comp-card" id="card-om1" onclick="flyTo(36.2400,-115.1642,'om1',15)">
+      <div class="card-top"><div class="badge onmarket">1</div><div><div class="card-addr">1650 W Craig Rd</div><div class="card-sub">North Las Vegas, NV 89031</div></div></div>
+      <div class="card-row"><span class="cr-lbl">Use</span><span class="cr-val">Medical Office</span></div>
+      <div class="card-row"><span class="cr-lbl">Avail SF</span><span class="cr-val">2,294–10,185 SF</span></div>
+      <div class="card-row"><span class="cr-lbl">Rate/SF/Mo</span><span class="cr-val">$2.50 NNN</span></div>
+      <div class="card-row"><span class="cr-lbl">Broker</span><span class="cr-val">Colliers</span></div>
+    </div>
+    <div class="comp-card" id="card-om2" onclick="flyTo(36.2532,-115.1548,'om2',15)">
+      <div class="card-top"><div class="badge onmarket">2</div><div><div class="card-addr">5135 Camino Al Norte Rd</div><div class="card-sub">North Las Vegas, NV 89031</div></div></div>
+      <div class="card-row"><span class="cr-lbl">Use</span><span class="cr-val">Office</span></div>
+      <div class="card-row"><span class="cr-lbl">Avail SF</span><span class="cr-val">6,464 SF</span></div>
+      <div class="card-row"><span class="cr-lbl">Rate/SF/Mo</span><span class="cr-val">$1.55 NNN</span></div>
+      <div class="card-row"><span class="cr-lbl">Broker</span><span class="cr-val">Foundation Management Group</span></div>
+    </div>
+    <div class="comp-card" id="card-om3" onclick="flyTo(36.2256,-115.2185,'om3',13)">
+      <div class="card-top"><div class="badge onmarket">3</div><div><div class="card-addr">3660 N Rancho Dr</div><div class="card-sub">North Las Vegas, NV 89130</div></div></div>
+      <div class="card-row"><span class="cr-lbl">Use</span><span class="cr-val">Medical Office</span></div>
+      <div class="card-row"><span class="cr-lbl">Avail SF</span><span class="cr-val">3,125–10,572 SF</span></div>
+      <div class="card-row"><span class="cr-lbl">Rate/SF/Mo</span><span class="cr-val">$1.45 NNN</span></div>
+      <div class="card-row"><span class="cr-lbl">Broker</span><span class="cr-val">Executive Realty Services</span></div>
+    </div>
+    <div class="comp-card" id="card-om4" onclick="flyTo(36.1816,-115.1760,'om4',13)">
+      <div class="card-top"><div class="badge onmarket">4</div><div><div class="card-addr">2500 W Washington Ave</div><div class="card-sub">Las Vegas, NV 89106</div></div></div>
+      <div class="card-row"><span class="cr-lbl">Use</span><span class="cr-val">Office</span></div>
+      <div class="card-row"><span class="cr-lbl">Avail SF</span><span class="cr-val">1,600–4,800 SF</span></div>
+      <div class="card-row"><span class="cr-lbl">Rate/SF/Mo</span><span class="cr-val">$1.50 NNN</span></div>
+      <div class="card-row"><span class="cr-lbl">Broker</span><span class="cr-val">KW Commercial</span></div>
+    </div>
+    <div class="comp-card" id="card-om5" onclick="flyTo(36.1741,-115.1471,'om5',14)">
+      <div class="card-top"><div class="badge onmarket">5</div><div><div class="card-addr">110 N City Pkwy</div><div class="card-sub">Las Vegas, NV 89106</div></div></div>
+      <div class="card-row"><span class="cr-lbl">Use</span><span class="cr-val">Office</span></div>
+      <div class="card-row"><span class="cr-lbl">Avail SF</span><span class="cr-val">6,016 SF</span></div>
+      <div class="card-row"><span class="cr-lbl">Rate/SF/Mo</span><span class="cr-val">$2.53 Full Service</span></div>
+      <div class="card-row"><span class="cr-lbl">Broker</span><span class="cr-val">Colliers</span></div>
+    </div>
+    <div class="comp-card" id="card-om6" onclick="flyTo(36.1801,-115.2434,'om6',13)">
+      <div class="card-top"><div class="badge onmarket">6</div><div><div class="card-addr">777 N Rainbow Blvd</div><div class="card-sub">Las Vegas, NV 89107</div></div></div>
+      <div class="card-row"><span class="cr-lbl">Use</span><span class="cr-val">Office</span></div>
+      <div class="card-row"><span class="cr-lbl">Avail SF</span><span class="cr-val">2,238–12,309 SF</span></div>
+      <div class="card-row"><span class="cr-lbl">Rate/SF/Mo</span><span class="cr-val">$2.25 Modified Gross</span></div>
+      <div class="card-row"><span class="cr-lbl">Broker</span><span class="cr-val">JLL</span></div>
+    </div>
+    <div class="comp-card" id="card-om7" onclick="flyTo(36.1660,-115.1394,'om7',14)">
+      <div class="card-top"><div class="badge onmarket">7</div><div><div class="card-addr">701 Bridger Ave</div><div class="card-sub">Las Vegas, NV 89101</div></div></div>
+      <div class="card-row"><span class="cr-lbl">Use</span><span class="cr-val">Office</span></div>
+      <div class="card-row"><span class="cr-lbl">Avail SF</span><span class="cr-val">1,334–5,292 SF</span></div>
+      <div class="card-row"><span class="cr-lbl">Rate/SF/Mo</span><span class="cr-val">$2.00 Full Service</span></div>
+      <div class="card-row"><span class="cr-lbl">Broker</span><span class="cr-val">Avison Young</span></div>
+    </div>
+    <div class="sec-hdr executed"><div class="dot" style="background:white;border-radius:50%;"></div>Executed Lease Deals (4)</div>
+    <div class="comp-card" id="card-ex1" onclick="flyTo(36.2396,-115.1700,'ex1',15)">
+      <div class="card-top"><div class="badge executed">A</div><div><div class="card-addr">1950 W Craig Rd</div><div class="card-sub">North Las Vegas, NV 89032</div></div></div>
+      <div class="card-row"><span class="cr-lbl">Use</span><span class="cr-val">Medical Office</span></div>
+      <div class="card-row"><span class="cr-lbl">SF Leased</span><span class="cr-val">4,185 SF</span></div>
+      <div class="card-row"><span class="cr-lbl">Executed Rate</span><span class="cr-val">$3.79/SF NNN</span></div>
+      <div class="card-row"><span class="cr-lbl">Date</span><span class="cr-val">Dec 2024</span></div>
+      <div class="card-row"><span class="cr-lbl">Notes</span><span class="cr-val">Dental Care Office</span></div>
+    </div>
+    <div class="comp-card" id="card-ex2" onclick="flyTo(36.2620,-115.1999,'ex2',14)">
+      <div class="card-top"><div class="badge executed">B</div><div><div class="card-addr">4372 W Ann Rd</div><div class="card-sub">North Las Vegas, NV 89031</div></div></div>
+      <div class="card-row"><span class="cr-lbl">Use</span><span class="cr-val">Medical Office</span></div>
+      <div class="card-row"><span class="cr-lbl">SF Leased</span><span class="cr-val">4,240 SF</span></div>
+      <div class="card-row"><span class="cr-lbl">Executed Rate</span><span class="cr-val">$4.06/SF NNN</span></div>
+      <div class="card-row"><span class="cr-lbl">Date</span><span class="cr-val">Jun 2024</span></div>
+      <div class="card-row"><span class="cr-lbl">Notes</span><span class="cr-val">Dental Care Office</span></div>
+    </div>
+    <div class="comp-card" id="card-ex3" onclick="flyTo(36.1672,-115.1439,'ex3',14)">
+      <div class="card-top"><div class="badge executed">C</div><div><div class="card-addr">300 S 4th St</div><div class="card-sub">Las Vegas, NV 89101</div></div></div>
+      <div class="card-row"><span class="cr-lbl">Use</span><span class="cr-val">Office</span></div>
+      <div class="card-row"><span class="cr-lbl">SF Leased</span><span class="cr-val">6,828 SF</span></div>
+      <div class="card-row"><span class="cr-lbl">Executed Rate</span><span class="cr-val">$2.50/SF Full Service</span></div>
+      <div class="card-row"><span class="cr-lbl">Date</span><span class="cr-val">Jul 2025</span></div>
+      <div class="card-row"><span class="cr-lbl">Notes</span><span class="cr-val">Tower 300 — Downtown LV</span></div>
+    </div>
+    <div class="comp-card" id="card-ex4" onclick="flyTo(36.1570,-115.1924,'ex4',14)">
+      <div class="card-top"><div class="badge executed">D</div><div><div class="card-addr">1210 S Valley View Blvd</div><div class="card-sub">Las Vegas, NV 89102</div></div></div>
+      <div class="card-row"><span class="cr-lbl">Use</span><span class="cr-val">Office</span></div>
+      <div class="card-row"><span class="cr-lbl">SF Leased</span><span class="cr-val">5,128 SF</span></div>
+      <div class="card-row"><span class="cr-lbl">Executed Rate</span><span class="cr-val">$1.40/SF Modified Gross</span></div>
+      <div class="card-row"><span class="cr-lbl">Date</span><span class="cr-val">Oct 2025</span></div>
+      <div class="card-row"><span class="cr-lbl">Notes</span><span class="cr-val">5-Year Term</span></div>
+    </div>
+    <div class="sidebar-footer">
+      Source: CoStar Group — Las Vegas Metro Office, June 2026.<br>
+      All coordinates geocoded via Google Places API. No estimation used.<br>
+      Prepared by Sansone Investments — Devon Sansone, Principal.
+    </div>
+  </div>
+</div>
+
+<!-- Download Modal -->
+<div id="downloadModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-title">Download Map</div>
+    <p style="margin-bottom: 15px; font-size: 10pt; color: #555;">Choose your preferred format:</p>
+    <button class="modal-btn" onclick="downloadPNG()">📥 Download as PNG</button>
+    <button class="modal-btn" onclick="downloadPDF()">📄 Download as PDF</button>
+    <br><br>
+    <button class="modal-btn modal-btn-cancel" onclick="closeDownloadModal()">Cancel</button>
+    <div class="loading" id="loadingSpinner">
+      <div class="spinner"></div>
+      <p style="margin-top: 10px; font-size: 9pt; color: #888;">Processing your download...</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const LOCATIONS = {
+  subject:{ lat:36.2337,  lng:-115.1614, type:"subject",  label:"S" },
+  om1:    { lat:36.2400,  lng:-115.1642, type:"onmarket", label:"1" },
+  om2:    { lat:36.2532,  lng:-115.1548, type:"onmarket", label:"2" },
+  om3:    { lat:36.2256,  lng:-115.2185, type:"onmarket", label:"3" },
+  om4:    { lat:36.1816,  lng:-115.1760, type:"onmarket", label:"4" },
+  om5:    { lat:36.1741,  lng:-115.1471, type:"onmarket", label:"5" },
+  om6:    { lat:36.1801,  lng:-115.2434, type:"onmarket", label:"6" },
+  om7:    { lat:36.1660,  lng:-115.1394, type:"onmarket", label:"7" },
+  ex1:    { lat:36.2396,  lng:-115.1700, type:"executed", label:"A" },
+  ex2:    { lat:36.2620,  lng:-115.1999, type:"executed", label:"B" },
+  ex3:    { lat:36.1672,  lng:-115.1439, type:"executed", label:"C" },
+  ex4:    { lat:36.1570,  lng:-115.1924, type:"executed", label:"D" },
+};
+const COLORS = {
+  subject:  { fill:"#1B3A6B", border:"#C9A84C" },
+  onmarket: { fill:"#C9A84C", border:"#8B6A20" },
+  executed: { fill:"#2E5C2E", border:"#1A3A1A" },
+};
+const POPUP_DATA = {
+  subject:{ title:"4040 & 4120 N Martin Luther King Blvd\nNorth Las Vegas, NV 89032", rows:[["Combined SF","±9,844 SF"],["In-Place Rent","$1.40/SF NNN"],["Occupancy","100%"],["Lease Expiry","August 31, 2032"],["Tenant","Hope Christian Health Center"]] },
+  om1:    { title:"1650 W Craig Rd\nNorth Las Vegas, NV 89031",  rows:[["Use","Medical Office"],["Avail SF","2,294–10,185 SF"],["Rate/SF/Mo","$2.50 NNN"],["Availability","Immediately"],["Broker","Colliers"]] },
+  om2:    { title:"5135 Camino Al Norte Rd\nNorth Las Vegas, NV 89031", rows:[["Use","Office"],["Avail SF","6,464 SF"],["Rate/SF/Mo","$1.55 NNN"],["Availability","Immediately"],["Broker","Foundation Management Group"]] },
+  om3:    { title:"3660 N Rancho Dr\nNorth Las Vegas, NV 89130", rows:[["Use","Medical Office"],["Avail SF","3,125–10,572 SF"],["Rate/SF/Mo","$1.45 NNN"],["Availability","Immediately"],["Broker","Executive Realty Services"]] },
+  om4:    { title:"2500 W Washington Ave\nLas Vegas, NV 89106",  rows:[["Use","Office"],["Avail SF","1,600–4,800 SF"],["Rate/SF/Mo","$1.50 NNN"],["Availability","Immediately"],["Broker","KW Commercial"]] },
+  om5:    { title:"110 N City Pkwy\nLas Vegas, NV 89106",        rows:[["Use","Office"],["Avail SF","6,016 SF"],["Rate/SF/Mo","$2.53 Full Service"],["Availability","Immediately"],["Broker","Colliers"]] },
+  om6:    { title:"777 N Rainbow Blvd\nLas Vegas, NV 89107",     rows:[["Use","Office"],["Avail SF","2,238–12,309 SF"],["Rate/SF/Mo","$2.25 Modified Gross"],["Availability","Immediately"],["Broker","JLL"]] },
+  om7:    { title:"701 Bridger Ave\nLas Vegas, NV 89101",        rows:[["Use","Office"],["Avail SF","1,334–5,292 SF"],["Rate/SF/Mo","$2.00 Full Service"],["Availability","Immediately"],["Broker","Avison Young"]] },
+  ex1:    { title:"1950 W Craig Rd\nNorth Las Vegas, NV 89032",  rows:[["Use","Medical Office"],["SF Leased","4,185 SF"],["Executed Rate","$3.79/SF NNN"],["Date","Dec 2024"],["Notes","Dental Care Office"]] },
+  ex2:    { title:"4372 W Ann Rd\nNorth Las Vegas, NV 89031",    rows:[["Use","Medical Office"],["SF Leased","4,240 SF"],["Executed Rate","$4.06/SF NNN"],["Date","Jun 2024"],["Notes","Dental Care Office"]] },
+  ex3:    { title:"300 S 4th St\nLas Vegas, NV 89101",           rows:[["Use","Office"],["SF Leased","6,828 SF"],["Executed Rate","$2.50/SF Full Service"],["Date","Jul 2025"],["Notes","Tower 300 — Downtown LV"]] },
+  ex4:    { title:"1210 S Valley View Blvd\nLas Vegas, NV 89102",rows:[["Use","Office"],["SF Leased","5,128 SF"],["Executed Rate","$1.40/SF Modified Gross"],["Date","Oct 2025"],["Notes","5-Year Term"]] },
+};
+
+const map = L.map("map",{ center:[36.21,-115.18], zoom:12 });
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{ attribution:"© OpenStreetMap contributors", maxZoom:19 }).addTo(map);
+
+function makeIcon(id){
+  const loc=LOCATIONS[id], c=COLORS[loc.type];
+  const sz=loc.type==="subject"?40:32, fs=loc.type==="subject"?13:11, bw=loc.type==="subject"?3:2;
+  return L.divIcon({ className:"", iconSize:[sz,sz], iconAnchor:[sz/2,sz/2], popupAnchor:[0,-(sz/2+5)],
+    html:`<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${c.fill};border:${bw}px solid ${c.border};display:flex;align-items:center;justify-content:center;font-family:Arial;font-size:${fs}pt;font-weight:bold;color:white;box-shadow:0 2px 8px rgba(0,0,0,0.32);">${loc.label}</div>`
+  });
+}
+
+function makePopup(id){
+  const loc=LOCATIONS[id], d=POPUP_DATA[id], cls=loc.type;
+  const lines=d.title.split("\n");
+  const rows=d.rows.map(([l,v])=>`<div class="popup-row"><span class="pl">${l}</span><span class="pv">${v}</span></div>`).join("");
+  return `<div><div class="popup-hdr ${cls}">${lines[0]}<br><span style="font-weight:normal;font-size:8pt;opacity:0.85;">${lines[1]||""}</span></div><div class="popup-body">${rows}</div></div>`;
+}
+
+const markers={};
+Object.keys(LOCATIONS).forEach(id=>{
+  const {lat,lng}=LOCATIONS[id];
+  const m=L.marker([lat,lng],{icon:makeIcon(id),zIndexOffset:id==="subject"?1000:0}).addTo(map).bindPopup(makePopup(id),{maxWidth:280});
+  markers[id]=m;
+  m.on("click",()=>{
+    document.querySelectorAll(".comp-card").forEach(c=>c.classList.remove("active"));
+    const card=document.getElementById("card-"+id);
+    if(card){card.classList.add("active");card.scrollIntoView({behavior:"smooth",block:"nearest"});}
+  });
+});
+
+function flyTo(lat,lng,id,zoom){
+  map.flyTo([lat,lng],zoom,{duration:0.9});
+  setTimeout(()=>markers[id]&&markers[id].openPopup(),950);
+  document.querySelectorAll(".comp-card").forEach(c=>c.classList.remove("active"));
+  const card=document.getElementById("card-"+id);
+  if(card){card.classList.add("active");card.scrollIntoView({behavior:"smooth",block:"nearest"});}
+}
+
+map.fitBounds(Object.values(LOCATIONS).map(l=>[l.lat,l.lng]),{padding:[36,36]});
+
+// Download Functions
+function openDownloadModal(){
+  document.getElementById("downloadModal").style.display="block";
+}
+
+function closeDownloadModal(){
+  document.getElementById("downloadModal").style.display="none";
+  document.getElementById("loadingSpinner").style.display="none";
+}
+
+function downloadPNG(){
+  showLoading();
+  setTimeout(()=>{
+    html2canvas(document.body,{
+      backgroundColor:"#f0f2f5",
+      scale:2,
+      logging:false,
+      useCORS:true,
+      allowTaint:true
+    }).then(canvas=>{
+      const link=document.createElement("a");
+      link.href=canvas.toDataURL("image/png");
+      link.download="Comps_Map_4040-4120_MLK_"+new Date().toISOString().split('T')[0]+".png";
+      link.click();
+      closeDownloadModal();
+    }).catch(err=>{
+      alert("Error generating PNG. Please try again.");
+      closeDownloadModal();
+    });
+  },500);
+}
+
+function downloadPDF(){
+  showLoading();
+  setTimeout(()=>{
+    html2canvas(document.body,{
+      backgroundColor:"#f0f2f5",
+      scale:2,
+      logging:false,
+      useCORS:true,
+      allowTaint:true
+    }).then(canvas=>{
+      const img=canvas.toDataURL("image/png");
+      const pdf=new (window.jspdf || {}).jsPDF({orientation:"landscape",unit:"mm",format:"a4"});
+      const pageWidth=pdf.internal.pageSize.getWidth();
+      const pageHeight=pdf.internal.pageSize.getHeight();
+      const ratio=canvas.width/canvas.height;
+      let pdfWidth=pageWidth-20;
+      let pdfHeight=pdfWidth/ratio;
+      if(pdfHeight>pageHeight-20){pdfHeight=pageHeight-20;pdfWidth=pdfHeight*ratio;}
+      pdf.addImage(img,"PNG",(pageWidth-pdfWidth)/2,(pageHeight-pdfHeight)/2,pdfWidth,pdfHeight);
+      pdf.save("Comps_Map_4040-4120_MLK_"+new Date().toISOString().split('T')[0]+".pdf");
+      closeDownloadModal();
+    }).catch(err=>{
+      alert("PDF download requires jsPDF library. PNG download is available.");
+      closeDownloadModal();
+    });
+  },500);
+}
+
+function showLoading(){
+  document.getElementById("loadingSpinner").style.display="block";
+}
+
+window.onclick=function(e){
+  const modal=document.getElementById("downloadModal");
+  if(e.target===modal){closeDownloadModal();}
+}
+</script>
+</body>
+</html>
